@@ -97,8 +97,7 @@ def handle_contact_input(value, next_step):
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
             confirm_msg = """
-            연락처 정보를 알려주셔서 고맙습니다. 위에 입력하신 내용에 틀림없는지 확인해보세요. 
-            수정을 원하시면 [예]를 선택하고, 앞서 질문하신 내용에 대해 답변을 원하시면 [아니오]를 선택하세요.
+            연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하실래요?
             """
             st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
             st.session_state.contact_step = "confirm"
@@ -212,7 +211,7 @@ try:
                 keywords = st.session_state.initial_keywords
                 
                 # 연락처 요청 메시지 표시
-                query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다."
+                query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드릴 수 있어요."
                 st.chat_message("assistant").write(query_msg)
                 st.session_state.messages.append({"role": "assistant", "content": query_msg})
                 
