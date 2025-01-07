@@ -1,6 +1,5 @@
 import streamlit as st
 import google.generativeai as genai
-from google.cloud import texttospeech
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
@@ -31,31 +30,9 @@ try:
         genai.configure(api_key=st.secrets["GEMINI_API_KEY"])
         return genai.GenerativeModel('gemini-pro')
 
-    # TTS 설정
-    @st.cache_resource
-    def init_tts():
-        return texttospeech.TextToSpeechClient()
-
-    # 음성 생성 함수
-    def generate_audio(text):
-        synthesis_input = texttospeech.SynthesisInput(text=text)
-        voice = texttospeech.VoiceSelectionParams(
-            language_code="ko-KR",
-            name="ko-KR-Standard-A",
-            ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
-        )
-        audio_config = texttospeech.AudioConfig(
-            audio_encoding=texttospeech.AudioEncoding.MP3
-        )
-        response = tts_client.synthesize_speech(
-            input=synthesis_input, voice=voice, audio_config=audio_config
-        )
-        return response.audio_content
-
     # 서비스 초기화
     sheet = init_google_sheets()
     model = init_gemini()
-    tts_client = init_tts()
 
     # 세션 상태 초기화
     if 'messages' not in st.session_state:
@@ -65,10 +42,6 @@ try:
         # 시작 메시지 추가
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
         st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
-        
-        # 시작 메시지 음성 생성
-        audio = generate_audio(welcome_msg)
-        st.audio(audio, format='audio/mp3')
 
     # 채팅 메시지 표시
     for message in st.session_state.messages:
@@ -88,8 +61,6 @@ try:
             
             with st.chat_message("assistant"):
                 st.write(query_msg)
-                audio = generate_audio(query_msg)
-                st.audio(audio, format='audio/mp3')
                 
                 col1, col2 = st.columns(2)
                 with col1:
@@ -115,8 +86,6 @@ try:
             # 응답 표시
             with st.chat_message("assistant"):
                 st.write(response)
-                audio = generate_audio(response)
-                st.audio(audio, format='audio/mp3')
             
             # 대화 내용 저장
             sheet.append_row([
