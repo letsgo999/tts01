@@ -12,7 +12,7 @@ st.set_page_config(
     layout="centered"
 )
 
-def get_kr_time():
+def get_korean_time():
     """한국 시간 반환"""
     korean_tz = pytz.timezone('Asia/Seoul')
     kr_time = datetime.now(korean_tz)
@@ -46,7 +46,7 @@ def save_to_sheets(sheet, data, extracted_keywords=""):
         phone = data.get('phone', '') or last_user_info['Phone']
 
         sheet.append_row([
-            get_kr_time(),                                # Datetime (한국 시간)
+            get_korean_time(),                                # Datetime (한국 시간)
             extracted_keywords,                           # Keyword
             data.get('question', ''),                    # User Message
             data.get('response', ''),                    # Assistant Message
@@ -86,22 +86,30 @@ def handle_contact_input(value, next_step):
             st.session_state.user_info['name'] = value
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
-            st.session_state.focus = "email_input"
+            st.session_state.focus = "email_input"  # 이메일 입력에 커서 자동 이동
         
         elif next_step == 2:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
-            st.session_state.focus = "phone_input"
+            st.session_state.focus = "phone_input"  # 휴대폰번호 입력에 커서 자동 이동
         
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
-            confirm_msg = """연락처 정보를 알려주셔서 고맙습니다. 위에 입력하신 내용에 틀림없는지 확인해보세요. 
-            수정을 원하시면 [예]를 선택하고, 앞서 질문하신 내용에 대해 답변을 원하시면 [아니오]를 선택하세요."""
+            confirm_msg = """
+            연락처 정보를 알려주셔서 고맙습니다. 위에 입력하신 내용에 틀림없는지 확인해보세요. 
+            수정을 원하시면 [예]를 선택하고, 앞서 질문하신 내용에 대해 답변을 원하시면 [아니오]를 선택하세요.
+            """
             st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
             st.session_state.contact_step = "confirm"
+            st.session_state.focus = None  # 커서 이동 중지 및 확인 버튼 표시
+            st.button("확인", on_click=handle_confirmation_click)
         
         st.rerun()
+
+def handle_confirmation_click():
+    st.session_state.confirmed = True
+    st.rerun()
 
 def handle_contact_confirm(choice):
     """연락처 확인 처리"""
@@ -208,7 +216,7 @@ try:
                 keywords = st.session_state.initial_keywords
                 
                 # 연락처 요청 메시지 표시
-                query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다. 연락처를 남겨주시겠어요?"
+                query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다."
                 st.chat_message("assistant").write(query_msg)
                 st.session_state.messages.append({"role": "assistant", "content": query_msg})
                 
