@@ -88,12 +88,23 @@ def handle_contact_input(next_step):
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
             st.session_state.focus = "email_input"  # 이메일 입력에 커서 자동 이동
+            save_to_sheets(sheet, {
+                'question': '',
+                'response': '사용자 이름 입력 완료',
+                'name': st.session_state.user_info['name']
+            }, st.session_state.initial_keywords)
         
         elif next_step == 2:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
             st.session_state.focus = "phone_input"  # 휴대폰번호 입력에 커서 자동 이동
+            save_to_sheets(sheet, {
+                'question': '',
+                'response': '사용자 이메일 입력 완료',
+                'name': st.session_state.user_info['name'],
+                'email': st.session_state.user_info['email']
+            }, st.session_state.initial_keywords)
         
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
@@ -103,6 +114,14 @@ def handle_contact_input(next_step):
             st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
             st.session_state.contact_step = "confirm"
             st.session_state.focus = None  # 커서 이동 중지 및 확인 버튼 표시
+            save_to_sheets(sheet, {
+                'question': '',
+                'response': '사용자 휴대폰 번호 입력 완료',
+                'name': st.session_state.user_info['name'],
+                'email': st.session_state.user_info['email'],
+                'phone': st.session_state.user_info['phone']
+            }, st.session_state.initial_keywords)
+
 
 def handle_contact_confirm(choice):
     """연락처 확인 처리"""
@@ -177,7 +196,7 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            name = st.text_input("이름 입력", key="name_input", on_change=handle_contact_input, args=(1,))
+            name = st.text_input("", key="name_input", on_change=handle_contact_input, args=(1,), placeholder="이름 입력")
             if "name_input" in st.session_state and st.session_state.focus == "name_input":
                 js = f"""
                 <script>
@@ -189,7 +208,7 @@ try:
                 st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 1:
-            email = st.text_input("이메일 입력", key="email_input", on_change=handle_contact_input, args=(2,))
+            email = st.text_input("", key="email_input", on_change=handle_contact_input, args=(2,), placeholder="이메일 입력")
             if "email_input" in st.session_state and st.session_state.focus == "email_input":
                 js = f"""
                     <script>
@@ -201,7 +220,7 @@ try:
                 st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 2:
-            phone = st.text_input("전화번호 입력", key="phone_input", on_change=handle_contact_input, args=(3,))
+            phone = st.text_input("", key="phone_input", on_change=handle_contact_input, args=(3,), placeholder="전화번호 입력")
             if "phone_input" in st.session_state and st.session_state.focus == "phone_input":
                 js = f"""
                     <script>
@@ -260,17 +279,6 @@ try:
                     'email': st.session_state.user_info.get('email', ''),
                     'phone': st.session_state.user_info.get('phone', '')
                 }, st.session_state.initial_keywords)
-
-    # 자동 포커스를 위한 JavaScript 추가
-    # if 'focus' in st.session_state and st.session_state.focus:
-    #     js = f"""
-    #     <script>
-    #         setTimeout(function() {{
-    #             document.querySelector('input[data-testid="{st.session_state.focus}"]').focus();
-    #         }}, 100);
-    #     </script>
-    #     """
-    #     st.components.v1.html(js, height=0)
 
     # 자동 스크롤
     if st.session_state.messages:
