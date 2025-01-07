@@ -88,23 +88,12 @@ def handle_contact_input(next_step):
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
             st.session_state.focus = "email_input"  # 이메일 입력에 커서 자동 이동
-            save_to_sheets(sheet, {
-                'question': '',
-                'response': '사용자 이름 입력 완료',
-                'name': st.session_state.user_info['name']
-            }, st.session_state.initial_keywords)
         
         elif next_step == 2:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
             st.session_state.focus = "phone_input"  # 휴대폰번호 입력에 커서 자동 이동
-            save_to_sheets(sheet, {
-                'question': '',
-                'response': '사용자 이메일 입력 완료',
-                'name': st.session_state.user_info['name'],
-                'email': st.session_state.user_info['email']
-            }, st.session_state.initial_keywords)
         
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
@@ -114,14 +103,6 @@ def handle_contact_input(next_step):
             st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
             st.session_state.contact_step = "confirm"
             st.session_state.focus = None  # 커서 이동 중지 및 확인 버튼 표시
-            save_to_sheets(sheet, {
-                'question': '',
-                'response': '사용자 휴대폰 번호 입력 완료',
-                'name': st.session_state.user_info['name'],
-                'email': st.session_state.user_info['email'],
-                'phone': st.session_state.user_info['phone']
-            }, st.session_state.initial_keywords)
-
 
 def handle_contact_confirm(choice):
     """연락처 확인 처리"""
@@ -175,6 +156,8 @@ try:
         st.session_state.initial_keywords = None
         st.session_state.button_pressed = False
         st.session_state.focus = None
+        st.session_state.initial_user_msg = None  # 사용자 첫 질문 저장 변수
+        st.session_state.initial_assistant_msg = None  # 어시스턴트 첫 질문 저장 변수
         
         # 시작 메시지 추가
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
@@ -258,7 +241,8 @@ try:
                 query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드릴 수 있어요. 잠시만요!"
                 st.chat_message("assistant").write(query_msg)
                 st.session_state.messages.append({"role": "assistant", "content": query_msg})
-                
+                st.session_state.initial_user_msg = prompt  # 사용자 첫 질문 저장
+                st.session_state.initial_assistant_msg = query_msg # 어시스턴트 첫 질문 저장
                 # 예/아니오 버튼 표시
                 col1, col2 = st.columns(2)
                 with col1:
