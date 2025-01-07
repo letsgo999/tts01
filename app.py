@@ -162,7 +162,7 @@ try:
             if prompt := st.chat_input("궁금하신 내용을 입력해주세요..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
                 
-                if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
+              if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
                     st.session_state.initial_question = prompt
                     st.session_state.initial_keywords = extract_keywords(prompt)
                     
@@ -170,33 +170,32 @@ try:
                     query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다. 연락처를 남겨주시겠어요?"
                     
                     st.session_state.messages.append({"role": "assistant", "content": query_msg})
-                    with st.chat_message("assistant"):
-                        st.write(query_msg)
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("예", key="yes_button", use_container_width=True):
-                                st.session_state.button_pressed = True
-                                st.session_state.contact_step = 0
-                                # 즉시 첫 번째 연락처 수집 메시지 표시
-                                st.session_state.messages.append({
-                                    "role": "assistant", 
-                                    "content": "이름이 어떻게 되세요?"
-                                })
+                    st.chat_message("assistant").write(query_msg)
+
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        if st.button("예", key="yes_button", use_container_width=True):
+                            st.session_state.button_pressed = True
+                            st.session_state.contact_step = 0
+                            name_msg = "이름이 어떻게 되세요?"
+                            st.session_state.messages.append({"role": "assistant", "content": name_msg})
+                            st.chat_message("assistant").write(name_msg)
+                            name = st.text_input("이름 입력", key="name_first", label_visibility="collapsed")
+                            if name.strip():
+                                st.session_state.user_info['name'] = name
+                                st.session_state.contact_step = 1
                                 st.rerun()
-                        with col2:
-                            if st.button("아니오", key="no_button", use_container_width=True):
-                                st.session_state.button_pressed = True
-                                # 즉시 AI 응답 생성 및 표시
-                                response = model.generate_content(st.session_state.initial_question).text
-                                st.session_state.messages.append({"role": "assistant", "content": response})
-                                # 대화 내용 저장
-                                save_to_sheets(sheet, {
-                                    'question': st.session_state.initial_question,
-                                    'response': response
-                                }, keywords)
-                                # 응답 표시
-                                with st.chat_message("assistant"):
-                                    st.write(response)
+
+                    with col2:
+                        if st.button("아니오", key="no_button", use_container_width=True):
+                            st.session_state.button_pressed = True
+                            response = model.generate_content(st.session_state.initial_question).text
+                            st.session_state.messages.append({"role": "assistant", "content": response})
+                            save_to_sheets(sheet, {
+                                'question': st.session_state.initial_question,
+                                'response': response
+                            }, keywords)
+                            st.chat_message("assistant").write(response)
 
                 elif not st.session_state.contact_step:
                     response = model.generate_content(prompt).text
