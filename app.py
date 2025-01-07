@@ -73,7 +73,7 @@ def handle_no_click():
         'question': st.session_state.initial_question,
         'response': response
     }, st.session_state.initial_keywords)
-    st.session_state.contact_step = None # 연락처 수집 종료
+    st.session_state.contact_step = None  # 연락처 수집 종료
 
 def handle_contact_input(next_step):
     """연락처 입력 처리"""
@@ -178,12 +178,39 @@ try:
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
             name = st.text_input("이름 입력", key="name_input", on_change=handle_contact_input, args=(1,))
+            if "name_input" in st.session_state and st.session_state.focus == "name_input":
+                js = f"""
+                <script>
+                    setTimeout(function() {{
+                        document.querySelector('input[data-testid="name_input"]').focus();
+                    }}, 100);
+                </script>
+                """
+                st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 1:
             email = st.text_input("이메일 입력", key="email_input", on_change=handle_contact_input, args=(2,))
+            if "email_input" in st.session_state and st.session_state.focus == "email_input":
+                js = f"""
+                    <script>
+                        setTimeout(function() {{
+                            document.querySelector('input[data-testid="email_input"]').focus();
+                        }}, 100);
+                    </script>
+                    """
+                st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 2:
             phone = st.text_input("전화번호 입력", key="phone_input", on_change=handle_contact_input, args=(3,))
+            if "phone_input" in st.session_state and st.session_state.focus == "phone_input":
+                js = f"""
+                    <script>
+                        setTimeout(function() {{
+                            document.querySelector('input[data-testid="phone_input"]').focus();
+                        }}, 100);
+                    </script>
+                    """
+                st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
@@ -235,15 +262,15 @@ try:
                 }, st.session_state.initial_keywords)
 
     # 자동 포커스를 위한 JavaScript 추가
-    if 'focus' in st.session_state and st.session_state.focus:
-        js = f"""
-        <script>
-            setTimeout(function() {{
-                document.querySelector('input[data-testid="{st.session_state.focus}"]').focus();
-            }}, 100);
-        </script>
-        """
-        st.components.v1.html(js, height=0)
+    # if 'focus' in st.session_state and st.session_state.focus:
+    #     js = f"""
+    #     <script>
+    #         setTimeout(function() {{
+    #             document.querySelector('input[data-testid="{st.session_state.focus}"]').focus();
+    #         }}, 100);
+    #     </script>
+    #     """
+    #     st.components.v1.html(js, height=0)
 
     # 자동 스크롤
     if st.session_state.messages:
