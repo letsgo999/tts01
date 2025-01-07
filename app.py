@@ -18,6 +18,41 @@ def extract_keywords(text):
     keywords = [word for word in words if word not in stop_words][:2]
     return ' '.join(keywords)
 
+def save_to_sheets(sheet, data, extracted_keywords=""):
+    """구글 시트에 대화 내용 저장"""
+    try:
+        # 마지막 행의 사용자 정보 가져오기
+        last_row = sheet.get_all_records()
+        last_user_info = {
+            'Name': '',
+            'Email': '',
+            'Phone': ''
+        }
+        if last_row:
+            last_user_info = {
+                'Name': last_row[-1]['Name'],
+                'Email': last_row[-1]['Email'],
+                'Phone': last_row[-1]['Phone']
+            }
+
+        # 현재 사용자 정보 또는 이전 사용자 정보 사용
+        name = data.get('name', '') or last_user_info['Name']
+        email = data.get('email', '') or last_user_info['Email']
+        phone = data.get('phone', '') or last_user_info['Phone']
+
+        # 시트에 데이터 추가
+        sheet.append_row([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Datetime
+            extracted_keywords,                             # Keyword
+            data.get('question', ''),                      # User Message
+            data.get('response', ''),                      # Assistant Message
+            name,                                          # Name
+            email,                                         # Email
+            phone                                          # Phone
+        ])
+    except Exception as e:
+        st.error(f"데이터 저장 중 오류 발생: {str(e)}")
+
 # 제목
 st.title("디마불사 AI 고객상담 챗봇")
 
@@ -47,6 +82,7 @@ try:
         st.session_state.user_info = {}
         st.session_state.contact_step = None
         st.session_state.initial_question = None
+        st.session_state.initial_keywords = None
         
         # 시작 메시지 추가
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
@@ -89,14 +125,13 @@ try:
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
                     # 대화 내용 저장
-                    sheet.append_row([
-                        datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                        st.session_state.user_info['name'],
-                        st.session_state.user_info['email'],
-                        st.session_state.user_info['phone'],
-                        st.session_state.initial_question,
-                        response
-                    ])
+                    save_to_sheets(sheet, {
+                        'question': st.session_state.initial_question,
+                        'response': response,
+                        'name': st.session_state.user_info['name'],
+                        'email': st.session_state.user_info['email'],
+                        'phone': st.session_state.user_info['phone']
+                    }, st.session_state.initial_keywords)
                     
                     st.session_state.contact_step = None
                     st.rerun()
@@ -115,10 +150,11 @@ try:
 
             # 첫 질문인 경우
             if len(st.session_state.messages) == 2:
-                # 초기 질문 저장
+                # 초기 질문과 키워드 저장
                 st.session_state.initial_question = prompt
+                st.session_state.initial_keywords = extract_keywords(prompt)
                 
-                keywords = extract_keywords(prompt)
+                keywords = st.session_state.initial_keywords
                 query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다. 연락처를 남겨주시겠어요?"
                 
                 st.session_state.messages.append({"role": "assistant", "content": query_msg})
@@ -133,10 +169,10 @@ try:
                         if st.button("아니오"):
                             response = model.generate_content(prompt).text
                             st.session_state.messages.append({"role": "assistant", "content": response})
-                            sheet.append_row([
-                                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                                '', '', '', prompt, response
-                            ])
+                            save_to_sheets(sheet, {
+                                'question': prompt,
+                                'response': response
+                            }, keywords)
                             st.rerun()
 
             else:
@@ -145,14 +181,13 @@ try:
                 st.session_state.messages.append({"role": "assistant", "content": response})
                 
                 # 대화 내용 저장
-                sheet.append_row([
-                    datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                    st.session_state.user_info.get('name', ''),
-                    st.session_state.user_info.get('email', ''),
-                    st.session_state.user_info.get('phone', ''),
-                    prompt,
-                    response
-                ])
+                save_to_sheets(sheet, {
+                    'question': prompt,
+                    'response': response,
+                    'name': st.session_state.user_info.get('name', ''),
+                    'email': st.session_state.user_info.get('email', ''),
+                    'phone': st.session_state.user_info.get('phone', '')
+                })
                 st.rerun()
 
 except Exception as e:
