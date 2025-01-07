@@ -94,9 +94,8 @@ try:
     
     # 채팅 메시지 표시
     with chat_container:
-        for idx, message in enumerate(st.session_state.messages):
-            key = f"message_{idx}"
-            with st.chat_message(message["role"], key=key):
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
                 st.write(message["content"])
 
     # 연락처 수집 프로세스
@@ -133,11 +132,9 @@ try:
                         st.session_state.messages.append({"role": "assistant", 
                             "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."})
                         
-                        # 저장된 초기 질문에 대한 응답 생성
                         response = model.generate_content(st.session_state.initial_question).text
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
-                        # 대화 내용 저장
                         save_to_sheets(sheet, {
                             'question': st.session_state.initial_question,
                             'response': response,
@@ -149,7 +146,7 @@ try:
                         st.session_state.contact_step = None
                         st.rerun()
 
-   # 사용자 입력 섹션
+    # 사용자 입력 섹션
     user_input_container = st.container()
     with user_input_container:
         if st.session_state.contact_step is None:
