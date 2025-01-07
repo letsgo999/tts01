@@ -149,7 +149,7 @@ try:
                         st.session_state.contact_step = None
                         st.rerun()
 
-    # 사용자 입력 섹션을 항상 화면 하단에 고정
+   # 사용자 입력 섹션
     user_input_container = st.container()
     with user_input_container:
         if st.session_state.contact_step is None:
@@ -185,11 +185,9 @@ try:
                                     st.write(response)
 
                 elif not st.session_state.contact_step:
-                    # AI 응답 생성
                     response = model.generate_content(prompt).text
                     st.session_state.messages.append({"role": "assistant", "content": response})
                     
-                    # 대화 내용 저장
                     save_to_sheets(sheet, {
                         'question': prompt,
                         'response': response,
