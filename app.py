@@ -28,6 +28,11 @@ def extract_keywords(text):
 def save_to_sheets(sheet, data, extracted_keywords=""):
     """구글 시트에 대화 내용 저장"""
     try:
+        # 연락처 정보가 이미 저장되었는지 확인
+        if st.session_state.contact_info_saved:
+            # 이미 저장되었다면, 더 이상 저장하지 않음.
+            return
+
         last_row = sheet.get_all_records()
         last_user_info = {
             'Name': '',
@@ -54,6 +59,11 @@ def save_to_sheets(sheet, data, extracted_keywords=""):
             email,  # Email
             phone  # Phone
         ])
+
+        # 연락처 정보가 저장되었음을 표시
+        if name != '' and email != '' and phone != '':
+            st.session_state.contact_info_saved = True
+
     except Exception as e:
         st.error(f"데이터 저장 중 오류 발생: {str(e)}")
 
@@ -88,12 +98,14 @@ def handle_contact_input(next_step):
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
             st.session_state.focus = "email_input"  # 이메일 입력에 커서 자동 이동
+
         
         elif next_step == 2:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
             st.session_state.contact_step = next_step
             st.session_state.focus = "phone_input"  # 휴대폰번호 입력에 커서 자동 이동
+
         
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
@@ -111,6 +123,7 @@ def handle_contact_confirm(choice):
         st.session_state.contact_step = 0
         st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
         st.session_state.focus = "name_input"
+
     elif choice == "no": #수정 안함
         # AI 응답 생성 및 저장
         response = model.generate_content(st.session_state.initial_question).text
@@ -155,13 +168,10 @@ try:
         st.session_state.initial_question = None
         st.session_state.initial_keywords = None
         st.session_state.button_pressed = False
-        st.session_state.focus = None
+        st.session_state.focus = "chat_input"  # 초기 포커스를 chat_input으로 설정
         st.session_state.initial_user_msg = None  # 사용자 첫 질문 저장 변수
         st.session_state.initial_assistant_msg = None  # 어시스턴트 첫 질문 저장 변수
-        
-        # 시작 메시지 추가
-        welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
-        st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
+        st.session_state.contact_info_saved = False  # 연락처 정보 저장 여부 초기화 (False)
 
     # 각 입력 단계별 초기화
     if 'name_input' not in st.session_state:
@@ -180,51 +190,40 @@ try:
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
             name = st.text_input("", key="name_input", on_change=handle_contact_input, args=(1,), placeholder="이름 입력")
-            if "name_input" in st.session_state and st.session_state.focus == "name_input":
-                js = f"""
+            # 이름 입력 필드에 포커스 설정
+            if st.session_state.focus == "name_input":
+                js = """
                 <script>
-                    setTimeout(function() {{
-                        var inputElement = document.querySelector('input[data-testid="name_input"]');
-                        if (inputElement) {{
-                            inputElement.focus();
-                        }}
-                    }}, 100);
+                    var input = window.parent.document.querySelector('input[data-testid="name_input"]');
+                    input.focus();
                 </script>
                 """
-                st.components.v1.html(js, height=0)
+                st.components.v1.html(js)
 
-        
         elif st.session_state.contact_step == 1:
             email = st.text_input("", key="email_input", on_change=handle_contact_input, args=(2,), placeholder="이메일 입력")
-            if "email_input" in st.session_state and st.session_state.focus == "email_input":
-                 js = f"""
+            # 이메일 입력 필드에 포커스 설정
+            if st.session_state.focus == "email_input":
+                js = """
                 <script>
-                    setTimeout(function() {{
-                        var inputElement = document.querySelector('input[data-testid="email_input"]');
-                        if (inputElement) {{
-                            inputElement.focus();
-                        }}
-                    }}, 100);
+                    var input = window.parent.document.querySelector('input[data-testid="email_input"]');
+                    input.focus();
                 </script>
                 """
-                 st.components.v1.html(js, height=0)
-        
+                st.components.v1.html(js)
+
         elif st.session_state.contact_step == 2:
             phone = st.text_input("", key="phone_input", on_change=handle_contact_input, args=(3,), placeholder="전화번호 입력")
-            if "phone_input" in st.session_state and st.session_state.focus == "phone_input":
-                js = f"""
+            # 전화번호 입력 필드에 포커스 설정
+            if st.session_state.focus == "phone_input":
+                js = """
                 <script>
-                    setTimeout(function() {{
-                        var inputElement = document.querySelector('input[data-testid="phone_input"]');
-                        if (inputElement) {{
-                            inputElement.focus();
-                        }}
-                    }}, 100);
+                    var input = window.parent.document.querySelector('input[data-testid="phone_input"]');
+                    input.focus();
                 </script>
                 """
-                st.components.v1.html(js, height=0)
+                st.components.v1.html(js)
 
-        
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
             with col1:
@@ -235,8 +234,9 @@ try:
                     handle_contact_confirm("no")
 
     # 사용자 입력 처리
-    if st.session_state.contact_step is None:
-        if prompt := st.chat_input("궁금하신 내용을 입력해주세요..."):
+    elif st.session_state.contact_step is None:
+        # 사용자 입력 필드 (chat_input)에 포커스 설정
+        if prompt := st.chat_input("궁금하신 내용을 입력해주세요...", key="chat_input"):
             # 사용자 메시지 표시
             st.chat_message("user").write(prompt)
             st.session_state.messages.append({"role": "user", "content": prompt})
@@ -254,6 +254,7 @@ try:
                 st.session_state.messages.append({"role": "assistant", "content": query_msg})
                 st.session_state.initial_user_msg = prompt  # 사용자 첫 질문 저장
                 st.session_state.initial_assistant_msg = query_msg # 어시스턴트 첫 질문 저장
+
                 # 예/아니오 버튼 표시
                 col1, col2 = st.columns(2)
                 with col1:
@@ -274,6 +275,16 @@ try:
                     'email': st.session_state.user_info.get('email', ''),
                     'phone': st.session_state.user_info.get('phone', '')
                 }, st.session_state.initial_keywords)
+
+        # 포커스 설정
+        if st.session_state.focus == "chat_input":
+            js = """
+            <script>
+                var input = window.parent.document.querySelector("textarea[data-testid='chat_input']");
+                input.focus();
+            </script>
+            """
+            st.components.v1.html(js)
 
     # 자동 스크롤
     if st.session_state.messages:
