@@ -98,53 +98,46 @@ try:
             with st.chat_message(message["role"]):
                 st.write(message["content"])
 
-    # 연락처 수집 프로세스
+   # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         form_container = st.container()
         with form_container:
             if st.session_state.contact_step == 0:
-                with st.chat_message("assistant"):
-                    st.write("이름이 어떻게 되세요?")
                 name = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
-                if st.button("다음", key="name_next"):
-                    if name.strip():
-                        st.session_state.user_info['name'] = name
-                        st.session_state.contact_step = 1
-                        st.rerun()
+                if name.strip():
+                    st.session_state.user_info['name'] = name
+                    st.session_state.contact_step = 1
+                    st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
+                    st.rerun()
             
             elif st.session_state.contact_step == 1:
-                with st.chat_message("assistant"):
-                    st.write("이메일 주소는 어떻게 되세요?")
                 email = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
-                if st.button("다음", key="email_next"):
-                    if email.strip():
-                        st.session_state.user_info['email'] = email
-                        st.session_state.contact_step = 2
-                        st.rerun()
+                if email.strip():
+                    st.session_state.user_info['email'] = email
+                    st.session_state.contact_step = 2
+                    st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
+                    st.rerun()
             
             elif st.session_state.contact_step == 2:
-                with st.chat_message("assistant"):
-                    st.write("휴대폰 번호는 어떻게 되세요?")
                 phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
-                if st.button("완료", key="phone_next"):
-                    if phone.strip():
-                        st.session_state.user_info['phone'] = phone
-                        st.session_state.messages.append({"role": "assistant", 
-                            "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."})
-                        
-                        response = model.generate_content(st.session_state.initial_question).text
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                        
-                        save_to_sheets(sheet, {
-                            'question': st.session_state.initial_question,
-                            'response': response,
-                            'name': st.session_state.user_info['name'],
-                            'email': st.session_state.user_info['email'],
-                            'phone': st.session_state.user_info['phone']
-                        }, st.session_state.initial_keywords)
-                        
-                        st.session_state.contact_step = None
-                        st.rerun()
+                if phone.strip():
+                    st.session_state.user_info['phone'] = phone
+                    st.session_state.messages.append({"role": "assistant", 
+                        "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."})
+                    
+                    response = model.generate_content(st.session_state.initial_question).text
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    save_to_sheets(sheet, {
+                        'question': st.session_state.initial_question,
+                        'response': response,
+                        'name': st.session_state.user_info['name'],
+                        'email': st.session_state.user_info['email'],
+                        'phone': st.session_state.user_info['phone']
+                    }, st.session_state.initial_keywords)
+                    
+                    st.session_state.contact_step = None
+                    st.rerun()
 
     # 사용자 입력 섹션
     user_input_container = st.container()
