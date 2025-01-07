@@ -78,7 +78,7 @@ def handle_no_click():
 
 def handle_contact_input(value, next_step):
     """연락처 입력 처리"""
-    if value.strip():
+    if value and value.strip():
         # 사용자 입력을 대화창에 표시
         st.session_state.messages.append({"role": "user", "content": value})
         
