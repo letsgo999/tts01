@@ -167,13 +167,17 @@ try:
                             st.rerun()
                     with col2:
                         if st.button("아니오"):
-                            response = model.generate_content(prompt).text
+                            # 바로 AI 응답 생성
+                            response = model.generate_content(st.session_state.initial_question).text
                             st.session_state.messages.append({"role": "assistant", "content": response})
+                            # 대화 내용 저장
                             save_to_sheets(sheet, {
-                                'question': prompt,
+                                'question': st.session_state.initial_question,
                                 'response': response
                             }, keywords)
-                            st.rerun()
+                            # 응답 즉시 표시
+                            with st.chat_message("assistant"):
+                                st.write(response)
 
             else:
                 # AI 응답 생성
