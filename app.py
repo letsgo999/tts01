@@ -22,7 +22,7 @@ SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/a
 credentials_dict = st.secrets["gcp_service_account"]
 creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPES)
 gc = gspread.authorize(creds)
-sheet = gc.open_by_key(os.getenv('GOOGLE_SHEET_ID')).sheet1
+sheet = gc.open_by_key(st.secrets["GOOGLE_SHEET_ID"]).sheet1  # 여기를 수정
 
 # TTS 클라이언트 초기화
 tts_client = texttospeech.TextToSpeechClient()
