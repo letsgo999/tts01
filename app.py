@@ -173,6 +173,10 @@ try:
         st.session_state.initial_assistant_msg = None  # 어시스턴트 첫 질문 저장 변수
         st.session_state.contact_info_saved = False  # 연락처 정보 저장 여부 초기화 (False)
 
+        # 시작 메시지 추가 (이 부분이 누락되었습니다!)
+        welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
+        st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
+
     # 각 입력 단계별 초기화
     if 'name_input' not in st.session_state:
         st.session_state.name_input = ""
