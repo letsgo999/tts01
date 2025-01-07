@@ -184,35 +184,46 @@ try:
                 js = f"""
                 <script>
                     setTimeout(function() {{
-                        document.querySelector('input[data-testid="name_input"]').focus();
+                        var inputElement = document.querySelector('input[data-testid="name_input"]');
+                        if (inputElement) {{
+                            inputElement.focus();
+                        }}
                     }}, 100);
                 </script>
                 """
                 st.components.v1.html(js, height=0)
+
         
         elif st.session_state.contact_step == 1:
             email = st.text_input("", key="email_input", on_change=handle_contact_input, args=(2,), placeholder="이메일 입력")
             if "email_input" in st.session_state and st.session_state.focus == "email_input":
-                js = f"""
-                    <script>
-                        setTimeout(function() {{
-                            document.querySelector('input[data-testid="email_input"]').focus();
-                        }}, 100);
-                    </script>
-                    """
-                st.components.v1.html(js, height=0)
+                 js = f"""
+                <script>
+                    setTimeout(function() {{
+                        var inputElement = document.querySelector('input[data-testid="email_input"]');
+                        if (inputElement) {{
+                            inputElement.focus();
+                        }}
+                    }}, 100);
+                </script>
+                """
+                 st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 2:
             phone = st.text_input("", key="phone_input", on_change=handle_contact_input, args=(3,), placeholder="전화번호 입력")
             if "phone_input" in st.session_state and st.session_state.focus == "phone_input":
                 js = f"""
-                    <script>
-                        setTimeout(function() {{
-                            document.querySelector('input[data-testid="phone_input"]').focus();
-                        }}, 100);
-                    </script>
-                    """
+                <script>
+                    setTimeout(function() {{
+                        var inputElement = document.querySelector('input[data-testid="phone_input"]');
+                        if (inputElement) {{
+                            inputElement.focus();
+                        }}
+                    }}, 100);
+                </script>
+                """
                 st.components.v1.html(js, height=0)
+
         
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
