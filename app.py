@@ -178,14 +178,10 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            value = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
-            if st.button("다음", key="name_next"):
-                handle_contact_input(value, 1)
+            st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.get("name_input"), 1))
         
         elif st.session_state.contact_step == 1:
-            value = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
-            if st.button("다음", key="email_next"):
-                handle_contact_input(value, 2)
+            st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.get("email_input"), 2))
         
         elif st.session_state.contact_step == 2:
             value = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
