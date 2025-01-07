@@ -177,7 +177,7 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            name = st.text_input("이름 입력", key="name_input", on_change=handle_contact_input, args=(1,))
+            name = st.text_input("", key="name_input", on_change=handle_contact_input, args=(1,))
             if "name_input" in st.session_state and st.session_state.focus == "name_input":
                 js = f"""
                 <script>
@@ -189,7 +189,7 @@ try:
                 st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 1:
-            email = st.text_input("이메일 입력", key="email_input", on_change=handle_contact_input, args=(2,))
+            email = st.text_input("", key="email_input", on_change=handle_contact_input, args=(2,))
             if "email_input" in st.session_state and st.session_state.focus == "email_input":
                 js = f"""
                     <script>
@@ -201,7 +201,7 @@ try:
                 st.components.v1.html(js, height=0)
         
         elif st.session_state.contact_step == 2:
-            phone = st.text_input("전화번호 입력", key="phone_input", on_change=handle_contact_input, args=(3,))
+            phone = st.text_input("", key="phone_input", on_change=handle_contact_input, args=(3,))
             if "phone_input" in st.session_state and st.session_state.focus == "phone_input":
                 js = f"""
                     <script>
@@ -260,17 +260,6 @@ try:
                     'email': st.session_state.user_info.get('email', ''),
                     'phone': st.session_state.user_info.get('phone', '')
                 }, st.session_state.initial_keywords)
-
-    # 자동 포커스를 위한 JavaScript 추가
-    # if 'focus' in st.session_state and st.session_state.focus:
-    #     js = f"""
-    #     <script>
-    #         setTimeout(function() {{
-    #             document.querySelector('input[data-testid="{st.session_state.focus}"]').focus();
-    #         }}, 100);
-    #     </script>
-    #     """
-    #     st.components.v1.html(js, height=0)
 
     # 자동 스크롤
     if st.session_state.messages:
