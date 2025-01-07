@@ -18,11 +18,24 @@ genai.configure(api_key=GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-pro')
 
 # Google Sheets API 설정
-SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-credentials_dict = st.secrets["gcp_service_account"]
-creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPES)
-gc = gspread.authorize(creds)
-sheet = gc.open_by_key(st.secrets["GOOGLE_SHEET_ID"]).sheet1  # 여기를 수정
+try:
+    # Google Sheets API 설정
+    SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    credentials_dict = st.secrets["gcp_service_account"]
+    creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPES)
+    gc = gspread.authorize(creds)
+    
+    # 디버깅을 위한 정보 출력
+    st.write(f"Using sheet ID: {st.secrets['GOOGLE_SHEET_ID']}")
+    st.write(f"Service account email: {credentials_dict['client_email']}")
+    
+    sheet = gc.open_by_key(st.secrets["GOOGLE_SHEET_ID"]).sheet1
+except Exception as e:
+    st.error(f"Error accessing Google Sheet: {str(e)}")
+    st.write("Please check the following:")
+    st.write("1. Google Sheet ID is correct")
+    st.write("2. Service account email has been added to the sheet with editor access")
+    st.write("3. Google Sheets API and Drive API are enabled in Google Cloud Console")
 
 # TTS 클라이언트 초기화
 tts_client = texttospeech.TextToSpeechClient()
