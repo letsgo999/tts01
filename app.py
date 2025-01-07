@@ -166,19 +166,19 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            name = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
+            name = st.text_input("이름 입력", key="name_input_1", label_visibility="collapsed")
             if st.session_state.focus == "name_input":
-                st.text_input("이름 입력", value=name, key="name_input", label_visibility="collapsed", on_change=handle_contact_input, args=(name, 1))
+                st.text_input("이름 입력", value=name, key="name_input_2", label_visibility="collapsed", on_change=handle_contact_input, args=(name, 1))
         
         elif st.session_state.contact_step == 1:
-            email = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
+            email = st.text_input("이메일 입력", key="email_input_1", label_visibility="collapsed")
             if st.session_state.focus == "email_input":
-                st.text_input("이메일 입력", value=email, key="email_input", label_visibility="collapsed", on_change=handle_contact_input, args=(email, 2))
+                st.text_input("이메일 입력", value=email, key="email_input_2", label_visibility="collapsed", on_change=handle_contact_input, args=(email, 2))
         
         elif st.session_state.contact_step == 2:
-            phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
+            phone = st.text_input("전화번호 입력", key="phone_input_1", label_visibility="collapsed")
             if st.session_state.focus == "phone_input":
-                st.text_input("전화번호 입력", value=phone, key="phone_input", label_visibility="collapsed")
+                st.text_input("전화번호 입력", value=phone, key="phone_input_2", label_visibility="collapsed")
             if st.button("확인", key="phone_confirm", use_container_width=True):
                 handle_contact_input(phone, 3)
         
