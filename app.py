@@ -63,57 +63,44 @@ def handle_yes_click():
 def handle_no_click():
     """[아니오] 버튼 클릭 시 즉시 실행"""
     st.session_state.button_pressed = True
-    # 바로 AI 응답 생성
     response = model.generate_content(st.session_state.initial_question).text
     st.session_state.messages.append({"role": "assistant", "content": response})
-    
-    # 데이터 저장
     save_to_sheets(sheet, {
         'question': st.session_state.initial_question,
         'response': response
     }, st.session_state.initial_keywords)
     st.rerun()
 
-def handle_name_submit():
-    """이름 입력 처리"""
-    name = st.session_state.name_input
-    if name.strip():
-        st.session_state.user_info['name'] = name
-        st.session_state.contact_step = 1
-        st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
-        st.rerun()
-
-def handle_email_submit():
-    """이메일 입력 처리"""
-    email = st.session_state.email_input
-    if email.strip():
-        st.session_state.user_info['email'] = email
-        st.session_state.contact_step = 2
-        st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
-        st.rerun()
-
-def handle_phone_submit():
-    """전화번호 입력 처리"""
-    phone = st.session_state.phone_input
-    if phone.strip():
-        st.session_state.user_info['phone'] = phone
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."
-        })
-        
-        response = model.generate_content(st.session_state.initial_question).text
-        st.session_state.messages.append({"role": "assistant", "content": response})
-        
-        save_to_sheets(sheet, {
-            'question': st.session_state.initial_question,
-            'response': response,
-            'name': st.session_state.user_info['name'],
-            'email': st.session_state.user_info['email'],
-            'phone': st.session_state.user_info['phone']
-        }, st.session_state.initial_keywords)
-        
-        st.session_state.contact_step = None
+def handle_contact_input(input_value, next_step, next_message=None):
+    """연락처 입력 처리"""
+    if input_value.strip():
+        if next_step == 1:
+            st.session_state.user_info['name'] = input_value
+            next_msg = "이메일 주소는 어떻게 되세요?"
+        elif next_step == 2:
+            st.session_state.user_info['email'] = input_value
+            next_msg = "휴대폰 번호는 어떻게 되세요?"
+        elif next_step == 3:
+            st.session_state.user_info['phone'] = input_value
+            response = model.generate_content(st.session_state.initial_question).text
+            st.session_state.messages.extend([
+                {"role": "assistant", "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."},
+                {"role": "assistant", "content": response}
+            ])
+            save_to_sheets(sheet, {
+                'question': st.session_state.initial_question,
+                'response': response,
+                'name': st.session_state.user_info['name'],
+                'email': st.session_state.user_info['email'],
+                'phone': input_value
+            }, st.session_state.initial_keywords)
+            st.session_state.contact_step = None
+        else:
+            return
+            
+        if next_step != 3:
+            st.session_state.contact_step = next_step
+            st.session_state.messages.append({"role": "assistant", "content": next_msg})
         st.rerun()
 
 # 제목
@@ -160,49 +147,55 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            st.text_input("이름 입력", key="name_input", 
-                         label_visibility="collapsed", on_change=handle_name_submit)
+            value = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
+            st.button("다음", key="name_next", on_click=handle_contact_input, 
+                     args=(value, 1), use_container_width=True)
         
         elif st.session_state.contact_step == 1:
-            st.text_input("이메일 입력", key="email_input", 
-                         label_visibility="collapsed", on_change=handle_email_submit)
+            value = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
+            st.button("다음", key="email_next", on_click=handle_contact_input, 
+                     args=(value, 2), use_container_width=True)
         
         elif st.session_state.contact_step == 2:
-            st.text_input("전화번호 입력", key="phone_input", 
-                         label_visibility="collapsed", on_change=handle_phone_submit)
+            value = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
+            st.button("완료", key="phone_next", on_click=handle_contact_input, 
+                     args=(value, 3), use_container_width=True)
 
     # 사용자 입력 처리
-    if st.session_state.contact_step is None:
-        if prompt := st.chat_input("궁금하신 내용을 입력해주세요..."):
-            st.session_state.messages.append({"role": "user", "content": prompt})
+    if prompt := st.chat_input("궁금하신 내용을 입력해주세요..."):
+        # 사용자 메시지 추가
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        
+        # 첫 질문인 경우
+        if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
+            st.session_state.initial_question = prompt
+            st.session_state.initial_keywords = extract_keywords(prompt)
             
-            if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
-                st.session_state.initial_question = prompt
-                st.session_state.initial_keywords = extract_keywords(prompt)
-                
-                keywords = st.session_state.initial_keywords
-                query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다. 연락처를 남겨주시겠어요?"
-                st.session_state.messages.append({"role": "assistant", "content": query_msg})
-
-                # 예/아니오 버튼
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.button("예", on_click=handle_yes_click, use_container_width=True)
-                with col2:
-                    st.button("아니오", on_click=handle_no_click, use_container_width=True)
-
-            elif not st.session_state.contact_step:
-                response = model.generate_content(prompt).text
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                save_to_sheets(sheet, {
-                    'question': prompt,
-                    'response': response,
-                    'name': st.session_state.user_info.get('name', ''),
-                    'email': st.session_state.user_info.get('email', ''),
-                    'phone': st.session_state.user_info.get('phone', '')
-                })
-                st.rerun()
+            keywords = st.session_state.initial_keywords
+            query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드립니다. 연락처를 남겨주시겠어요?"
+            st.session_state.messages.append({"role": "assistant", "content": query_msg})
+            
+            # 버튼 표시
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button("예", on_click=handle_yes_click, use_container_width=True)
+            with col2:
+                st.button("아니오", on_click=handle_no_click, use_container_width=True)
+            st.rerun()
+        
+        # 일반 대화
+        elif not st.session_state.contact_step:
+            response = model.generate_content(prompt).text
+            st.session_state.messages.append({"role": "assistant", "content": response})
+            
+            save_to_sheets(sheet, {
+                'question': prompt,
+                'response': response,
+                'name': st.session_state.user_info.get('name', ''),
+                'email': st.session_state.user_info.get('email', ''),
+                'phone': st.session_state.user_info.get('phone', '')
+            })
+            st.rerun()
 
     # 자동 스크롤
     if st.session_state.messages:
