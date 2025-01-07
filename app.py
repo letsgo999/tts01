@@ -68,6 +68,27 @@ def handle_no_click():
     }, st.session_state.initial_keywords)
     st.rerun()
 
+def handle_modify_contact():
+    """연락처 수정 시작"""
+    st.session_state.contact_step = 0
+    st.session_state.user_info = {}
+    st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
+    st.rerun()
+
+def handle_contact_confirmed():
+    """연락처 확인 완료 후 진행"""
+    response = model.generate_content(st.session_state.initial_question).text
+    st.session_state.messages.append({"role": "assistant", "content": response})
+    save_to_sheets(sheet, {
+        'question': st.session_state.initial_question,
+        'response': response,
+        'name': st.session_state.user_info['name'],
+        'email': st.session_state.user_info['email'],
+        'phone': st.session_state.user_info['phone']
+    }, st.session_state.initial_keywords)
+    st.session_state.contact_step = None
+    st.rerun()
+
 def handle_contact_input(value, next_step):
     """연락처 입력 처리"""
     if value.strip():
@@ -77,30 +98,19 @@ def handle_contact_input(value, next_step):
         if next_step == 1:
             st.session_state.user_info['name'] = value
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
+            st.session_state.contact_step = next_step
         elif next_step == 2:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
+            st.session_state.contact_step = next_step
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
-            st.session_state.messages.append({
-                "role": "assistant",
-                "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."
-            })
-            
-            response = model.generate_content(st.session_state.initial_question).text
-            st.session_state.messages.append({"role": "assistant", "content": response})
-            save_to_sheets(sheet, {
-                'question': st.session_state.initial_question,
-                'response': response,
-                'name': st.session_state.user_info['name'],
-                'email': st.session_state.user_info['email'],
-                'phone': value
-            }, st.session_state.initial_keywords)
-            
-            st.session_state.contact_step = None
-        
-        if next_step < 3:
-            st.session_state.contact_step = next_step
+            confirm_msg = (
+                "연락처 정보를 알려주셔서 고맙습니다. 위에 입력하신 내용에 틀림없는지 확인해보세요. "
+                "수정을 원하시면 [예]를 선택하고, 앞서 질문하신 내용에 대해 답변을 원하시면 [아니오]를 선택하세요."
+            )
+            st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
+            st.session_state.contact_step = 'confirm'
         
         st.rerun()
 
@@ -146,17 +156,32 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            value = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
-            if value:
+            value = st.text_input("이름 입력", key="name_input", 
+                                label_visibility="collapsed", 
+                                autofocus=True)
+            if st.button("다음", key="name_next"):
                 handle_contact_input(value, 1)
+        
         elif st.session_state.contact_step == 1:
-            value = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
-            if value:
+            value = st.text_input("이메일 입력", key="email_input", 
+                                label_visibility="collapsed", 
+                                autofocus=True)
+            if st.button("다음", key="email_next"):
                 handle_contact_input(value, 2)
+        
         elif st.session_state.contact_step == 2:
-            value = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
-            if value:
+            value = st.text_input("전화번호 입력", key="phone_input", 
+                                label_visibility="collapsed", 
+                                autofocus=True)
+            if st.button("다음", key="phone_next"):
                 handle_contact_input(value, 3)
+        
+        elif st.session_state.contact_step == 'confirm':
+            col1, col2 = st.columns(2)
+            with col1:
+                st.button("예 (연락처 수정)", on_click=handle_modify_contact, use_container_width=True)
+            with col2:
+                st.button("아니오 (답변 진행)", on_click=handle_contact_confirmed, use_container_width=True)
 
     # 사용자 입력 처리
     if st.session_state.contact_step is None:
