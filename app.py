@@ -74,26 +74,25 @@ def handle_no_click():
         'response': response
     }, st.session_state.initial_keywords)
 
-def handle_contact_input():
+def handle_contact_input(value, next_step):
     """연락처 입력 처리"""
-    value = st.session_state[st.session_state.focus]
     if value and value.strip():
         # 사용자 입력을 대화창에 표시
         st.session_state.messages.append({"role": "user", "content": value})
         
-        if st.session_state.contact_step == 0:
+        if next_step == 1:
             st.session_state.user_info['name'] = value
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
-            st.session_state.contact_step = 1
+            st.session_state.contact_step = next_step
             st.session_state.focus = "email_input"  # 이메일 입력에 커서 자동 이동
         
-        elif st.session_state.contact_step == 1:
+        elif next_step == 2:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
-            st.session_state.contact_step = 2
+            st.session_state.contact_step = next_step
             st.session_state.focus = "phone_input"  # 휴대폰번호 입력에 커서 자동 이동
         
-        elif st.session_state.contact_step == 2:
+        elif next_step == 3:
             st.session_state.user_info['phone'] = value
             confirm_msg = """
             연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하실래요?
@@ -154,9 +153,6 @@ try:
         st.session_state.initial_keywords = None
         st.session_state.button_pressed = False
         st.session_state.focus = None
-        st.session_state.name_input = ""
-        st.session_state.email_input = ""
-        st.session_state.phone_input = ""
         
         # 시작 메시지 추가
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
@@ -170,18 +166,13 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input)
+            name = st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.name_input, 1))
         
         elif st.session_state.contact_step == 1:
-            st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input)
+            email = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.email_input, 2))
         
         elif st.session_state.contact_step == 2:
-            phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
-            if phone:
-                st.session_state.phone_input = phone
-            if st.session_state.phone_input:
-                if st.button("확인", key="phone_confirm", use_container_width=True):
-                    handle_contact_input()
+            phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.phone_input, 3))
         
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
