@@ -4,6 +4,9 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import pytz
+from google.cloud import texttospeech
+import speech_recognition as sr
+from threading import Thread
 
 # 기본 페이지 설정
 st.set_page_config(
@@ -18,6 +21,57 @@ def get_korean_time():
     kr_time = datetime.now(korean_tz)
     return kr_time.strftime("%Y-%m-%d %H:%M:%S")
 
+def generate_tts(text, language_code="ko-KR"):
+    """텍스트를 음성으로 변환"""
+    try:
+        client = texttospeech.TextToSpeechClient()
+        synthesis_input = texttospeech.SynthesisInput(text=text)
+        
+        voice = texttospeech.VoiceSelectionParams(
+            language_code=language_code,
+            name="ko-KR-Standard-A",
+            ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+        )
+        
+        audio_config = texttospeech.AudioConfig(
+            audio_encoding=texttospeech.AudioEncoding.MP3
+        )
+        
+        response = client.synthesize_speech(
+            input=synthesis_input,
+            voice=voice,
+            audio_config=audio_config
+        )
+        
+        return response.audio_content
+    except Exception as e:
+        st.error(f"음성 생성 중 오류 발생: {str(e)}")
+        return None
+
+def start_speech_recognition():
+    """음성 인식 시작"""
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        st.session_state.listening = True
+        audio = r.listen(source)
+        st.session_state.listening = False
+        
+        try:
+            text = r.recognize_google(audio, language='ko-KR')
+            return text
+        except sr.UnknownValueError:
+            st.warning("음성을 인식하지 못했습니다. 다시 시도해주세요.")
+            return None
+        except sr.RequestError as e:
+            st.error(f"음성 인식 서비스 오류: {str(e)}")
+            return None
+
+def play_audio_message(message):
+    """메시지를 음성으로 재생"""
+    audio_content = generate_tts(message)
+    if audio_content:
+        st.audio(audio_content, format='audio/mp3')
+
 def extract_keywords(text):
     """핵심 키워드 추출 함수"""
     stop_words = ['은', '는', '이', '가', '을', '를', '에', '에서', '으로', '로', '하다', '입니다', '있다', '없다']
@@ -28,9 +82,7 @@ def extract_keywords(text):
 def save_to_sheets(sheet, data, extracted_keywords=""):
     """구글 시트에 대화 내용 저장"""
     try:
-        # 연락처 정보가 이미 저장되었는지 확인
         if st.session_state.contact_info_saved:
-            # 이미 저장되었다면, 더 이상 저장하지 않음.
             return
 
         last_row = sheet.get_all_records()
@@ -51,16 +103,15 @@ def save_to_sheets(sheet, data, extracted_keywords=""):
         phone = data.get('phone', '') or last_user_info['Phone']
 
         sheet.append_row([
-            get_korean_time(),  # Datetime (한국 시간)
-            extracted_keywords,  # Keyword
-            data.get('question', ''),  # User Message
-            data.get('response', ''),  # Assistant Message
-            name,  # Name
-            email,  # Email
-            phone  # Phone
+            get_korean_time(),
+            extracted_keywords,
+            data.get('question', ''),
+            data.get('response', ''),
+            name,
+            email,
+            phone
         ])
 
-        # 연락처 정보가 저장되었음을 표시
         if name != '' and email != '' and phone != '':
             st.session_state.contact_info_saved = True
 
@@ -71,7 +122,9 @@ def handle_yes_click():
     """[예] 버튼 클릭 시 즉시 실행"""
     st.session_state.button_pressed = True
     st.session_state.contact_step = 0
-    st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
+    message = "이름이 어떻게 되세요?"
+    st.session_state.messages.append({"role": "assistant", "content": message})
+    play_audio_message(message)
     st.session_state.focus = "name_input"
     st.rerun()
 
@@ -80,38 +133,73 @@ def handle_no_click():
     st.session_state.button_pressed = True
     response = model.generate_content(st.session_state.initial_question).text
     st.session_state.messages.append({"role": "assistant", "content": response})
+    play_audio_message(response)
     save_to_sheets(sheet, {
         'question': st.session_state.initial_question,
         'response': response
     }, st.session_state.initial_keywords)
-    st.session_state.contact_step = None  # 연락처 수집 종료
-    st.session_state.focus = "chat_input"  # 채팅 입력으로 포커스 이동
+    st.session_state.contact_step = None
+    st.session_state.focus = "chat_input"
     st.rerun()
+
+def handle_user_input(text):
+    """사용자 입력 처리 통합 함수"""
+    if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
+        st.session_state.initial_question = text
+        st.session_state.initial_keywords = extract_keywords(text)
+        keywords = st.session_state.initial_keywords
+        
+        query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드릴 수 있어요. 잠시만요!"
+        st.session_state.messages.append({"role": "assistant", "content": query_msg})
+        play_audio_message(query_msg)
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.button("예", on_click=handle_yes_click, use_container_width=True)
+        with col2:
+            st.button("아니오", on_click=handle_no_click, use_container_width=True)
+    
+    elif not st.session_state.contact_step:
+        response = model.generate_content(text).text
+        st.session_state.messages.append({"role": "assistant", "content": response})
+        play_audio_message(response)
+        
+        save_to_sheets(sheet, {
+            'question': text,
+            'response': response,
+            'name': st.session_state.user_info.get('name', ''),
+            'email': st.session_state.user_info.get('email', ''),
+            'phone': st.session_state.user_info.get('phone', '')
+        }, st.session_state.initial_keywords)
 
 def handle_contact_input(next_step):
     """연락처 입력 처리"""
     focus_key = st.session_state.focus
     if focus_key in st.session_state and st.session_state[focus_key].strip():
         value = st.session_state[focus_key]
-        # 사용자 입력을 대화창에 표시
         st.session_state.messages.append({"role": "user", "content": value})
         
         if next_step == 1:
             st.session_state.user_info['name'] = value
-            st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
+            message = "이메일 주소는 어떻게 되세요?"
+            st.session_state.messages.append({"role": "assistant", "content": message})
+            play_audio_message(message)
             st.session_state.contact_step = next_step
             st.session_state.focus = "email_input"
         
         elif next_step == 2:
             st.session_state.user_info['email'] = value
-            st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
+            message = "휴대폰 번호는 어떻게 되세요?"
+            st.session_state.messages.append({"role": "assistant", "content": message})
+            play_audio_message(message)
             st.session_state.contact_step = next_step
             st.session_state.focus = "phone_input"
         
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
-            confirm_msg = "연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하시겠어요?"
-            st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
+            message = "연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하시겠어요?"
+            st.session_state.messages.append({"role": "assistant", "content": message})
+            play_audio_message(message)
             st.session_state.contact_step = "confirm"
             st.session_state.focus = None
         st.rerun()
@@ -119,15 +207,18 @@ def handle_contact_input(next_step):
 def handle_contact_confirm(choice):
     """연락처 확인 처리"""
     if choice == "yes":  # 수정하기
-        st.session_state.button_pressed = False  # 연락처 수집을 다시 시작하므로 초기화
+        st.session_state.button_pressed = False
         st.session_state.contact_step = 0
-        st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
+        message = "이름이 어떻게 되세요?"
+        st.session_state.messages.append({"role": "assistant", "content": message})
+        play_audio_message(message)
         st.session_state.focus = "name_input"
         st.rerun()
-    else:  # 수정 안함 (no)
-        st.session_state.button_pressed = True  # 일반 대화 모드로 전환
+    else:  # 수정 안함
+        st.session_state.button_pressed = True
         response = model.generate_content(st.session_state.initial_question).text
         st.session_state.messages.append({"role": "assistant", "content": response})
+        play_audio_message(response)
         
         save_to_sheets(sheet, {
             'question': st.session_state.initial_question,
@@ -174,17 +265,11 @@ try:
         st.session_state.initial_user_msg = None
         st.session_state.initial_assistant_msg = None
         st.session_state.contact_info_saved = False
+        st.session_state.listening = False
 
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
         st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
-
-    # 각 입력 단계별 초기화
-    if 'name_input' not in st.session_state:
-        st.session_state.name_input = ""
-    if 'email_input' not in st.session_state:
-        st.session_state.email_input = ""
-    if 'phone_input' not in st.session_state:
-        st.session_state.phone_input = ""
+        play_audio_message(welcome_msg)
 
     # 채팅 메시지 표시
     for message in st.session_state.messages:
@@ -233,41 +318,30 @@ try:
             with col2:
                 st.button("아니오", key="confirm_no", on_click=lambda: handle_contact_confirm("no"), use_container_width=True)
 
-    # 사용자 입력 처리
+# 사용자 입력 처리
     elif st.session_state.contact_step is None:
-        if prompt := st.chat_input("궁금하신 내용을 입력해주세요...", key="chat_input"):
-            st.chat_message("user").write(prompt)
-            st.session_state.messages.append({"role": "user", "content": prompt})
-            
-            if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
-                st.session_state.initial_question = prompt
-                st.session_state.initial_keywords = extract_keywords(prompt)
-                keywords = st.session_state.initial_keywords
-                
-                query_msg = f"아, {keywords}에 대해 궁금하시군요? 답변 드리기 전에 미리 연락처를 남겨 주시면 필요한 고급 자료나 뉴스레터를 보내드릴 수 있어요. 잠시만요!"
-                st.chat_message("assistant").write(query_msg)
-                st.session_state.messages.append({"role": "assistant", "content": query_msg})
-                st.session_state.initial_user_msg = prompt
-                st.session_state.initial_assistant_msg = query_msg
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.button("예", on_click=handle_yes_click, use_container_width=True)
-                with col2:
-                    st.button("아니오", on_click=handle_no_click, use_container_width=True)
-            
-            elif not st.session_state.contact_step:
-                response = model.generate_content(prompt).text
-                st.chat_message("assistant").write(response)
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                save_to_sheets(sheet, {
-                    'question': prompt,
-                    'response': response,
-                    'name': st.session_state.user_info.get('name', ''),
-                    'email': st.session_state.user_info.get('email', ''),
-                    'phone': st.session_state.user_info.get('phone', '')
-                }, st.session_state.initial_keywords)
+        # 음성/텍스트 입력 선택 탭
+        input_tab1, input_tab2 = st.tabs(["음성으로 질문하기", "텍스트로 질문하기"])
+        
+        with input_tab1:
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                if not st.session_state.listening:
+                    if st.button("🎤 음성으로 질문하기", use_container_width=True):
+                        with st.spinner("음성을 인식하고 있습니다..."):
+                            text = start_speech_recognition()
+                            if text:
+                                st.chat_message("user").write(text)
+                                st.session_state.messages.append({"role": "user", "content": text})
+                                handle_user_input(text)
+                else:
+                    st.info("음성을 인식하고 있습니다...")
+        
+        with input_tab2:
+            if prompt := st.chat_input("궁금하신 내용을 입력해주세요...", key="chat_input"):
+                st.chat_message("user").write(prompt)
+                st.session_state.messages.append({"role": "user", "content": prompt})
+                handle_user_input(prompt)
 
         if st.session_state.focus == "chat_input":
             js = """
