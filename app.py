@@ -3,6 +3,7 @@ import google.generativeai as genai
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
+import pytz
 
 # 기본 페이지 설정
 st.set_page_config(
@@ -10,6 +11,11 @@ st.set_page_config(
     page_icon="🤖",
     layout="centered"
 )
+
+def get_korean_time():
+    """한국 시간 반환"""
+    seoul_tz = pytz.timezone('Asia/Seoul')
+    return datetime.now(seoul_tz).strftime("%Y-%m-%d %H:%M:%S")
 
 def extract_keywords(text):
     """핵심 키워드 추출 함수"""
@@ -39,60 +45,34 @@ def save_to_sheets(sheet, data, extracted_keywords=""):
         phone = data.get('phone', '') or last_user_info['Phone']
 
         sheet.append_row([
-            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),  # Datetime
-            extracted_keywords,                             # Keyword
-            data.get('question', ''),                      # User Message
-            data.get('response', ''),                      # Assistant Message
-            name,                                          # Name
-            email,                                         # Email
-            phone                                          # Phone
+            get_korean_time(),                           # Datetime (KST)
+            extracted_keywords,                          # Keyword
+            data.get('question', ''),                   # User Message
+            data.get('response', ''),                   # Assistant Message
+            name,                                       # Name
+            email,                                      # Email
+            phone                                       # Phone
         ])
     except Exception as e:
         st.error(f"데이터 저장 중 오류 발생: {str(e)}")
 
-def handle_yes_click():
-    """[예] 버튼 클릭 시 즉시 실행"""
-    st.session_state.button_pressed = True
+def start_contact_collection():
+    """연락처 수집 시작"""
     st.session_state.contact_step = 0
     st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
-    st.rerun()
 
-def handle_no_click():
-    """[아니오] 버튼 클릭 시 즉시 실행"""
-    st.session_state.button_pressed = True
+def proceed_with_ai_response():
+    """AI 응답 진행"""
     response = model.generate_content(st.session_state.initial_question).text
     st.session_state.messages.append({"role": "assistant", "content": response})
     save_to_sheets(sheet, {
         'question': st.session_state.initial_question,
         'response': response
     }, st.session_state.initial_keywords)
-    st.rerun()
-
-def handle_modify_contact():
-    """연락처 수정 시작"""
-    st.session_state.contact_step = 0
-    st.session_state.user_info = {}
-    st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
-    st.rerun()
-
-def handle_contact_confirmed():
-    """연락처 확인 완료 후 진행"""
-    response = model.generate_content(st.session_state.initial_question).text
-    st.session_state.messages.append({"role": "assistant", "content": response})
-    save_to_sheets(sheet, {
-        'question': st.session_state.initial_question,
-        'response': response,
-        'name': st.session_state.user_info['name'],
-        'email': st.session_state.user_info['email'],
-        'phone': st.session_state.user_info['phone']
-    }, st.session_state.initial_keywords)
-    st.session_state.contact_step = None
-    st.rerun()
 
 def handle_contact_input(value, next_step):
     """연락처 입력 처리"""
     if value.strip():
-        # 사용자 입력을 대화창에 표시
         st.session_state.messages.append({"role": "user", "content": value})
         
         if next_step == 1:
@@ -111,8 +91,6 @@ def handle_contact_input(value, next_step):
             )
             st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
             st.session_state.contact_step = 'confirm'
-        
-        st.rerun()
 
 # 제목
 st.title("디마불사 AI 고객상담 챗봇")
@@ -156,32 +134,26 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            value = st.text_input("이름 입력", key="name_input", 
-                                label_visibility="collapsed", 
-                                autofocus=True)
-            if st.button("다음", key="name_next"):
+            value = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
+            if submit := st.button("다음", key="name_next"):
                 handle_contact_input(value, 1)
         
         elif st.session_state.contact_step == 1:
-            value = st.text_input("이메일 입력", key="email_input", 
-                                label_visibility="collapsed", 
-                                autofocus=True)
-            if st.button("다음", key="email_next"):
+            value = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
+            if submit := st.button("다음", key="email_next"):
                 handle_contact_input(value, 2)
         
         elif st.session_state.contact_step == 2:
-            value = st.text_input("전화번호 입력", key="phone_input", 
-                                label_visibility="collapsed", 
-                                autofocus=True)
-            if st.button("다음", key="phone_next"):
+            value = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
+            if submit := st.button("다음", key="phone_next"):
                 handle_contact_input(value, 3)
         
         elif st.session_state.contact_step == 'confirm':
             col1, col2 = st.columns(2)
             with col1:
-                st.button("예 (연락처 수정)", on_click=handle_modify_contact, use_container_width=True)
+                st.button("예 (연락처 수정)", on_click=start_contact_collection)
             with col2:
-                st.button("아니오 (답변 진행)", on_click=handle_contact_confirmed, use_container_width=True)
+                st.button("아니오 (답변 진행)", on_click=proceed_with_ai_response)
 
     # 사용자 입력 처리
     if st.session_state.contact_step is None:
@@ -205,9 +177,9 @@ try:
                 # 예/아니오 버튼 표시
                 col1, col2 = st.columns(2)
                 with col1:
-                    st.button("예", on_click=handle_yes_click, use_container_width=True)
+                    st.button("예", on_click=start_contact_collection)
                 with col2:
-                    st.button("아니오", on_click=handle_no_click, use_container_width=True)
+                    st.button("아니오", on_click=proceed_with_ai_response)
             
             # 일반 대화 처리
             elif not st.session_state.contact_step:
