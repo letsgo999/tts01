@@ -73,6 +73,7 @@ def handle_no_click():
         'question': st.session_state.initial_question,
         'response': response
     }, st.session_state.initial_keywords)
+    st.session_state.contact_step = None # 연락처 수집 종료
 
 def handle_contact_input(next_step):
     """연락처 입력 처리"""
@@ -97,7 +98,7 @@ def handle_contact_input(next_step):
         elif next_step == 3:
             st.session_state.user_info['phone'] = value
             confirm_msg = """
-            연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하실래요?
+            연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하시겠어요?
             """
             st.session_state.messages.append({"role": "assistant", "content": confirm_msg})
             st.session_state.contact_step = "confirm"
@@ -105,12 +106,12 @@ def handle_contact_input(next_step):
 
 def handle_contact_confirm(choice):
     """연락처 확인 처리"""
-    if choice == "yes":
+    if choice == "yes": #수정하기
         # 연락처 수정을 위해 처음부터 다시 시작
         st.session_state.contact_step = 0
         st.session_state.messages.append({"role": "assistant", "content": "이름이 어떻게 되세요?"})
         st.session_state.focus = "name_input"
-    else:
+    elif choice == "no": #수정 안함
         # AI 응답 생성 및 저장
         response = model.generate_content(st.session_state.initial_question).text
         st.session_state.messages.append({"role": "assistant", "content": response})
@@ -123,7 +124,7 @@ def handle_contact_confirm(choice):
             'phone': st.session_state.user_info['phone']
         }, st.session_state.initial_keywords)
         
-        st.session_state.contact_step = None
+        st.session_state.contact_step = None # 연락처 수집 종료
 
 # 제목
 st.title("디마불사 AI 고객상담 챗봇")
@@ -231,7 +232,7 @@ try:
                     'name': st.session_state.user_info.get('name', ''),
                     'email': st.session_state.user_info.get('email', ''),
                     'phone': st.session_state.user_info.get('phone', '')
-                })
+                }, st.session_state.initial_keywords)
 
     # 자동 포커스를 위한 JavaScript 추가
     if 'focus' in st.session_state and st.session_state.focus:
