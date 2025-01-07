@@ -5,8 +5,6 @@ from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 import pytz
 from google.cloud import texttospeech
-import speech_recognition as sr
-from threading import Thread
 
 # 기본 페이지 설정
 st.set_page_config(
@@ -48,29 +46,77 @@ def generate_tts(text, language_code="ko-KR"):
         st.error(f"음성 생성 중 오류 발생: {str(e)}")
         return None
 
-def start_speech_recognition():
-    """음성 인식 시작"""
-    r = sr.Recognizer()
-    with sr.Microphone() as source:
-        st.session_state.listening = True
-        audio = r.listen(source)
-        st.session_state.listening = False
-        
-        try:
-            text = r.recognize_google(audio, language='ko-KR')
-            return text
-        except sr.UnknownValueError:
-            st.warning("음성을 인식하지 못했습니다. 다시 시도해주세요.")
-            return None
-        except sr.RequestError as e:
-            st.error(f"음성 인식 서비스 오류: {str(e)}")
-            return None
-
 def play_audio_message(message):
     """메시지를 음성으로 재생"""
     audio_content = generate_tts(message)
     if audio_content:
         st.audio(audio_content, format='audio/mp3')
+
+# 웹 음성인식을 위한 JavaScript
+js_code = """
+<script>
+let mediaRecorder;
+let audioChunks = [];
+
+function setupRecorder() {
+    if (!'mediaDevices' in navigator) {
+        alert('음성 입력이 지원되지 않는 브라우저입니다.');
+        return false;
+    }
+    
+    navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+            mediaRecorder = new MediaRecorder(stream);
+            
+            mediaRecorder.ondataavailable = (e) => {
+                audioChunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                audioChunks = [];
+                const reader = new FileReader();
+                reader.readAsDataURL(audioBlob);
+                reader.onloadend = () => {
+                    const base64data = reader.result;
+                    // Streamlit으로 데이터 전송
+                    window.parent.postMessage({
+                        type: 'streamlit:setComponentValue',
+                        data: base64data
+                    }, '*');
+                };
+            };
+        });
+    return true;
+}
+
+function startRecording() {
+    if (!mediaRecorder) {
+        if (!setupRecorder()) return;
+    }
+    audioChunks = [];
+    mediaRecorder.start();
+    document.getElementById('recordButton').style.display = 'none';
+    document.getElementById('stopButton').style.display = 'block';
+}
+
+function stopRecording() {
+    mediaRecorder.stop();
+    document.getElementById('recordButton').style.display = 'block';
+    document.getElementById('stopButton').style.display = 'none';
+}
+</script>
+
+<button id="recordButton" onclick="startRecording()" 
+    style="padding: 10px 20px; background-color: #ff4b4b; color: white; border: none; border-radius: 5px; cursor: pointer;">
+    🎤 음성 녹음 시작
+</button>
+
+<button id="stopButton" onclick="stopRecording()" 
+    style="display: none; padding: 10px 20px; background-color: #4bb4ff; color: white; border: none; border-radius: 5px; cursor: pointer;">
+    ⏹ 녹음 중지
+</button>
+"""
 
 def extract_keywords(text):
     """핵심 키워드 추출 함수"""
@@ -172,38 +218,6 @@ def handle_user_input(text):
             'phone': st.session_state.user_info.get('phone', '')
         }, st.session_state.initial_keywords)
 
-def handle_contact_input(next_step):
-    """연락처 입력 처리"""
-    focus_key = st.session_state.focus
-    if focus_key in st.session_state and st.session_state[focus_key].strip():
-        value = st.session_state[focus_key]
-        st.session_state.messages.append({"role": "user", "content": value})
-        
-        if next_step == 1:
-            st.session_state.user_info['name'] = value
-            message = "이메일 주소는 어떻게 되세요?"
-            st.session_state.messages.append({"role": "assistant", "content": message})
-            play_audio_message(message)
-            st.session_state.contact_step = next_step
-            st.session_state.focus = "email_input"
-        
-        elif next_step == 2:
-            st.session_state.user_info['email'] = value
-            message = "휴대폰 번호는 어떻게 되세요?"
-            st.session_state.messages.append({"role": "assistant", "content": message})
-            play_audio_message(message)
-            st.session_state.contact_step = next_step
-            st.session_state.focus = "phone_input"
-        
-        elif next_step == 3:
-            st.session_state.user_info['phone'] = value
-            message = "연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하시겠어요?"
-            st.session_state.messages.append({"role": "assistant", "content": message})
-            play_audio_message(message)
-            st.session_state.contact_step = "confirm"
-            st.session_state.focus = None
-        st.rerun()
-
 def handle_contact_confirm(choice):
     """연락처 확인 처리"""
     if choice == "yes":  # 수정하기
@@ -265,7 +279,7 @@ try:
         st.session_state.initial_user_msg = None
         st.session_state.initial_assistant_msg = None
         st.session_state.contact_info_saved = False
-        st.session_state.listening = False
+        st.session_state.audio_data = None
 
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
         st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
@@ -318,24 +332,22 @@ try:
             with col2:
                 st.button("아니오", key="confirm_no", on_click=lambda: handle_contact_confirm("no"), use_container_width=True)
 
-# 사용자 입력 처리
+    # 사용자 입력 처리
     elif st.session_state.contact_step is None:
         # 음성/텍스트 입력 선택 탭
         input_tab1, input_tab2 = st.tabs(["음성으로 질문하기", "텍스트로 질문하기"])
         
+
         with input_tab1:
-            col1, col2 = st.columns([3, 1])
-            with col1:
-                if not st.session_state.listening:
-                    if st.button("🎤 음성으로 질문하기", use_container_width=True):
-                        with st.spinner("음성을 인식하고 있습니다..."):
-                            text = start_speech_recognition()
-                            if text:
-                                st.chat_message("user").write(text)
-                                st.session_state.messages.append({"role": "user", "content": text})
-                                handle_user_input(text)
-                else:
-                    st.info("음성을 인식하고 있습니다...")
+            # 음성 녹음 컴포넌트
+            st.components.v1.html(js_code, height=100)
+            
+            # 음성 데이터 처리
+            if 'audio_data' in st.session_state and st.session_state.audio_data:
+                audio_data = st.session_state.audio_data
+                st.audio(audio_data, format='audio/wav')
+                # 여기에 음성인식 API 연동 코드 추가 가능
+                st.session_state.audio_data = None  # 처리 후 초기화
         
         with input_tab2:
             if prompt := st.chat_input("궁금하신 내용을 입력해주세요...", key="chat_input"):
