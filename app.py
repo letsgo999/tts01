@@ -46,13 +46,13 @@ def save_to_sheets(sheet, data, extracted_keywords=""):
         phone = data.get('phone', '') or last_user_info['Phone']
 
         sheet.append_row([
-            get_korean_time(),                                # Datetime (한국 시간)
-            extracted_keywords,                           # Keyword
-            data.get('question', ''),                    # User Message
-            data.get('response', ''),                    # Assistant Message
-            name,                                        # Name
-            email,                                       # Email
-            phone                                        # Phone
+            get_korean_time(),  # Datetime (한국 시간)
+            extracted_keywords,  # Keyword
+            data.get('question', ''),  # User Message
+            data.get('response', ''),  # Assistant Message
+            name,  # Name
+            email,  # Email
+            phone  # Phone
         ])
     except Exception as e:
         st.error(f"데이터 저장 중 오류 발생: {str(e)}")
@@ -74,25 +74,26 @@ def handle_no_click():
         'response': response
     }, st.session_state.initial_keywords)
 
-def handle_contact_input(value, next_step):
+def handle_contact_input():
     """연락처 입력 처리"""
+    value = st.session_state[st.session_state.focus]
     if value and value.strip():
         # 사용자 입력을 대화창에 표시
         st.session_state.messages.append({"role": "user", "content": value})
         
-        if next_step == 1:
+        if st.session_state.contact_step == 0:
             st.session_state.user_info['name'] = value
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
-            st.session_state.contact_step = next_step
+            st.session_state.contact_step = 1
             st.session_state.focus = "email_input"  # 이메일 입력에 커서 자동 이동
         
-        elif next_step == 2:
+        elif st.session_state.contact_step == 1:
             st.session_state.user_info['email'] = value
             st.session_state.messages.append({"role": "assistant", "content": "휴대폰 번호는 어떻게 되세요?"})
-            st.session_state.contact_step = next_step
+            st.session_state.contact_step = 2
             st.session_state.focus = "phone_input"  # 휴대폰번호 입력에 커서 자동 이동
         
-        elif next_step == 3:
+        elif st.session_state.contact_step == 2:
             st.session_state.user_info['phone'] = value
             confirm_msg = """
             연락처 정보를 알려주셔서 고맙습니다. 입력하신 내용에 틀린 곳이 있으면 지금 수정해 주세요. 수정하실래요?
@@ -158,6 +159,14 @@ try:
         welcome_msg = "어서 오세요. 디마불사 최규문입니다. 무엇이 궁금하세요, 제미나이가 저 대신 24시간 응답해 드립니다."
         st.session_state.messages.append({"role": "assistant", "content": welcome_msg})
 
+    # 각 입력 단계별 초기화
+    if 'name_input' not in st.session_state:
+        st.session_state.name_input = ""
+    if 'email_input' not in st.session_state:
+        st.session_state.email_input = ""
+    if 'phone_input' not in st.session_state:
+        st.session_state.phone_input = ""
+
     # 채팅 메시지 표시
     for message in st.session_state.messages:
         with st.chat_message(message["role"]):
@@ -166,13 +175,13 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            name = st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.name_input, 1))
+            st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input)
         
         elif st.session_state.contact_step == 1:
-            email = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.email_input, 2))
+            st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input)
         
         elif st.session_state.contact_step == 2:
-            phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed", on_change=handle_contact_input, args=(st.session_state.phone_input, 3))
+            st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed", on_change=handle_contact_input)
         
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
