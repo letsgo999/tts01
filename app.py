@@ -19,7 +19,8 @@ model = genai.GenerativeModel('gemini-pro')
 
 # Google Sheets API 설정
 SCOPES = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
-creds = ServiceAccountCredentials.from_json_keyfile_name('service_account.json', SCOPES)
+credentials_dict = st.secrets["gcp_service_account"]
+creds = ServiceAccountCredentials.from_json_keyfile_dict(credentials_dict, SCOPES)
 gc = gspread.authorize(creds)
 sheet = gc.open_by_key(os.getenv('GOOGLE_SHEET_ID')).sheet1
 
