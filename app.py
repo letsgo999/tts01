@@ -280,12 +280,16 @@ try:
                     'phone': st.session_state.user_info.get('phone', '')
                 }, st.session_state.initial_keywords)
 
-        # 포커스 설정
+        # 포커스 설정 - DOMContentLoaded 이벤트 리스너 사용
         if st.session_state.focus == "chat_input":
             js = """
             <script>
+            document.addEventListener('DOMContentLoaded', function() {
                 var input = window.parent.document.querySelector("textarea[data-testid='chat_input']");
-                input.focus();
+                if (input) {
+                    input.focus();
+                }
+            });
             </script>
             """
             st.components.v1.html(js)
