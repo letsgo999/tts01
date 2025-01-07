@@ -71,6 +71,9 @@ def handle_no_click():
 def handle_contact_input(value, next_step):
     """연락처 입력 처리"""
     if value.strip():
+        # 사용자 입력을 대화창에 표시
+        st.session_state.messages.append({"role": "user", "content": value})
+        
         if next_step == 1:
             st.session_state.user_info['name'] = value
             st.session_state.messages.append({"role": "assistant", "content": "이메일 주소는 어떻게 되세요?"})
@@ -95,11 +98,11 @@ def handle_contact_input(value, next_step):
             }, st.session_state.initial_keywords)
             
             st.session_state.contact_step = None
-            st.rerun()
         
         if next_step < 3:
             st.session_state.contact_step = next_step
-            st.rerun()
+        
+        st.rerun()
 
 # 제목
 st.title("디마불사 AI 고객상담 챗봇")
