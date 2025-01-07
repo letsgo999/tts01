@@ -4,6 +4,26 @@ import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime
 
+# 추가: 버튼 상태 관리를 위한 세션 상태
+if 'button_pressed' not in st.session_state:
+    st.session_state.button_pressed = False
+
+def handle_yes_click():
+    st.session_state.button_pressed = True
+    st.session_state.contact_step = 0
+
+def handle_no_click():
+    st.session_state.button_pressed = True
+    # 바로 AI 응답 생성
+    response = model.generate_content(st.session_state.initial_question).text
+    st.session_state.messages.append({"role": "assistant", "content": response})
+    # 대화 내용 저장
+    save_to_sheets(sheet, {
+        'question': st.session_state.initial_question,
+        'response': response
+    }, st.session_state.initial_keywords)
+    st.session_state.contact_step = None
+    
 # 기본 페이지 설정
 st.set_page_config(
     page_title="디마불사 AI 고객상담 챗봇",
@@ -148,8 +168,8 @@ try:
             st.session_state.messages.append({"role": "user", "content": prompt})
             st.chat_message("user").write(prompt)
 
-            # 첫 질문인 경우
-            if len(st.session_state.messages) == 2:
+                # 첫 질문인 경우
+            if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
                 # 초기 질문과 키워드 저장
                 st.session_state.initial_question = prompt
                 st.session_state.initial_keywords = extract_keywords(prompt)
@@ -162,37 +182,27 @@ try:
                     st.write(query_msg)
                     col1, col2 = st.columns(2)
                     with col1:
-                        if st.button("예"):
-                            st.session_state.contact_step = 0
+                        if st.button("예", key="yes_button", on_click=handle_yes_click):
                             st.rerun()
                     with col2:
-                        if st.button("아니오"):
-                            # 바로 AI 응답 생성
-                            response = model.generate_content(st.session_state.initial_question).text
-                            st.session_state.messages.append({"role": "assistant", "content": response})
-                            # 대화 내용 저장
-                            save_to_sheets(sheet, {
-                                'question': st.session_state.initial_question,
-                                'response': response
-                            }, keywords)
-                            # 응답 즉시 표시
-                            with st.chat_message("assistant"):
-                                st.write(response)
+                        if st.button("아니오", key="no_button", on_click=handle_no_click):
+                            st.rerun()
 
             else:
-                # AI 응답 생성
-                response = model.generate_content(prompt).text
-                st.session_state.messages.append({"role": "assistant", "content": response})
-                
-                # 대화 내용 저장
-                save_to_sheets(sheet, {
-                    'question': prompt,
-                    'response': response,
-                    'name': st.session_state.user_info.get('name', ''),
-                    'email': st.session_state.user_info.get('email', ''),
-                    'phone': st.session_state.user_info.get('phone', '')
-                })
-                st.rerun()
+                if not st.session_state.contact_step:
+                    # AI 응답 생성
+                    response = model.generate_content(prompt).text
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                    
+                    # 대화 내용 저장
+                    save_to_sheets(sheet, {
+                        'question': prompt,
+                        'response': response,
+                        'name': st.session_state.user_info.get('name', ''),
+                        'email': st.session_state.user_info.get('email', ''),
+                        'phone': st.session_state.user_info.get('phone', '')
+                    })
+                    st.rerun()
 
 except Exception as e:
     st.error(f"오류가 발생했습니다: {str(e)}")
