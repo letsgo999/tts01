@@ -175,13 +175,20 @@ try:
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
         if st.session_state.contact_step == 0:
-            st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input)
+            name = st.text_input("이름 입력", key="name_input", label_visibility="collapsed", on_change=handle_contact_input)
+            if st.session_state.focus == "name_input":
+                st.text_input("이름 입력", value=name, key="name_input_active", label_visibility="collapsed", on_change=handle_contact_input)
         
         elif st.session_state.contact_step == 1:
-            st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input)
+            email = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input)
+            if st.session_state.focus == "email_input":
+                st.text_input("이메일 입력", value=email, key="email_input_active", label_visibility="collapsed", on_change=handle_contact_input)
         
         elif st.session_state.contact_step == 2:
-            st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed", on_change=handle_contact_input)
+            phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed", on_change=handle_contact_input)
+            if st.session_state.focus == "phone_input":
+                st.text_input("전화번호 입력", value=phone, key="phone_input_active", label_visibility="collapsed", on_change=handle_contact_input)
+                st.button("확인", key="phone_confirm", on_click=handle_contact_input, args=(phone, 3), use_container_width=True)
         
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
