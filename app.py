@@ -176,9 +176,12 @@ try:
             st.text_input("이메일 입력", key="email_input", label_visibility="collapsed", on_change=handle_contact_input)
         
         elif st.session_state.contact_step == 2:
-            st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
-            if st.button("확인", key="phone_confirm", use_container_width=True):
-                handle_contact_input()
+            phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
+            if phone:
+                st.session_state.phone_input = phone
+            if st.session_state.phone_input:
+                if st.button("확인", key="phone_confirm", use_container_width=True):
+                    handle_contact_input()
         
         elif st.session_state.contact_step == "confirm":
             col1, col2 = st.columns(2)
