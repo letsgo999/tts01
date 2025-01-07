@@ -16,23 +16,80 @@ def create_focus_script():
     """채팅 입력창 자동 포커스를 위한 JavaScript 생성"""
     return """
     <script>
-        // 채팅 입력창에 포커스를 설정하는 함수
+        // 포커스 상태 관리를 위한 변수
+        let focusAttempts = 0;
+        const MAX_ATTEMPTS = 10;
+        const RETRY_INTERVAL = 100; // ms
+        
+        // 채팅 입력창에 포커스를 설정하고 상태를 확인하는 함수
         function setFocusToChatInput() {
+            const chatInput = window.parent.document.querySelector('textarea[data-testid="chat_input"]');
+            if (!chatInput) {
+                console.warn('Chat input element not found');
+                return false;
+            }
+
+            if (!chatInput.matches(':focus')) {
+                chatInput.focus();
+                
+                // 포커스 설정 확인
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        resolve(chatInput.matches(':focus'));
+                    }, 50); // 포커스 적용 확인을 위한 짧은 대기
+                });
+            }
+            return Promise.resolve(true);
+        }
+
+        // 초기 포커스 설정 및 확인
+        async function initializeFocus() {
+            while (focusAttempts < MAX_ATTEMPTS) {
+                const focusSuccess = await setFocusToChatInput();
+                if (focusSuccess) {
+                    console.log('Focus successfully set to chat input');
+                    break;
+                }
+                
+                focusAttempts++;
+                if (focusAttempts >= MAX_ATTEMPTS) {
+                    console.warn('Failed to set focus after maximum attempts');
+                    break;
+                }
+                
+                await new Promise(resolve => setTimeout(resolve, RETRY_INTERVAL));
+            }
+        }
+
+        // 포커스 모니터링 및 유지
+        function maintainFocus() {
             const chatInput = window.parent.document.querySelector('textarea[data-testid="chat_input"]');
             if (chatInput && !chatInput.matches(':focus')) {
                 chatInput.focus();
             }
         }
 
-        // 초기 포커스 설정
-        setFocusToChatInput();
+        // 초기화 실행
+        initializeFocus();
 
-        // 주기적으로 포커스 확인 및 설정 (500ms 간격)
-        setInterval(setFocusToChatInput, 500);
+        // 주기적인 포커스 상태 확인 및 유지
+        setInterval(maintainFocus, 500);
 
-        // 클릭 이벤트 발생 시 약간의 지연 후 포커스 재설정
+        // 클릭 이벤트 처리
         window.parent.document.addEventListener('click', function() {
-            setTimeout(setFocusToChatInput, 100);
+            setTimeout(async () => {
+                const focusSuccess = await setFocusToChatInput();
+                if (!focusSuccess) {
+                    console.warn('Failed to restore focus after click');
+                }
+            }, 100);
+        });
+
+        // 페이지 가시성 변경 시 포커스 재설정
+        window.parent.document.addEventListener('visibilitychange', function() {
+            if (!document.hidden) {
+                initializeFocus();
+            }
         });
     </script>
     """
