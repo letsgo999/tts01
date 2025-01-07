@@ -53,6 +53,19 @@ def save_to_sheets(sheet, data, extracted_keywords=""):
     except Exception as e:
         st.error(f"데이터 저장 중 오류 발생: {str(e)}")
 
+def handle_next_contact_step(step, value, next_message):
+    """연락처 수집 단계 처리"""
+    if step == 0:
+        st.session_state.user_info['name'] = value
+    elif step == 1:
+        st.session_state.user_info['email'] = value
+    elif step == 2:
+        st.session_state.user_info['phone'] = value
+    
+    st.session_state.contact_step = step + 1
+    st.session_state.messages.append({"role": "assistant", "content": next_message})
+    st.rerun()
+
 # 제목
 st.title("디마불사 AI 고객상담 챗봇")
 
@@ -95,8 +108,7 @@ try:
     # 채팅 메시지 표시
     with chat_container:
         for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
+            st.chat_message(message["role"]).write(message["content"])
 
     # 연락처 수집 프로세스
     if st.session_state.contact_step is not None:
@@ -106,44 +118,27 @@ try:
                 name = st.text_input("이름 입력", key="name_input", label_visibility="collapsed")
                 if st.button("다음", key="name_next"):
                     if name.strip():
-                        st.session_state.user_info['name'] = name
-                        st.session_state.contact_step = 1
-                        # 즉시 다음 질문 표시
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "content": "이메일 주소는 어떻게 되세요?"
-                        })
-                        st.rerun()
+                        handle_next_contact_step(0, name, "이메일 주소는 어떻게 되세요?")
             
             elif st.session_state.contact_step == 1:
                 email = st.text_input("이메일 입력", key="email_input", label_visibility="collapsed")
                 if st.button("다음", key="email_next"):
                     if email.strip():
-                        st.session_state.user_info['email'] = email
-                        st.session_state.contact_step = 2
-                        # 즉시 다음 질문 표시
-                        st.session_state.messages.append({
-                            "role": "assistant",
-                            "content": "휴대폰 번호는 어떻게 되세요?"
-                        })
-                        st.rerun()
+                        handle_next_contact_step(1, email, "휴대폰 번호는 어떻게 되세요?")
             
             elif st.session_state.contact_step == 2:
                 phone = st.text_input("전화번호 입력", key="phone_input", label_visibility="collapsed")
                 if st.button("완료", key="phone_next"):
                     if phone.strip():
                         st.session_state.user_info['phone'] = phone
-                        # 연락처 수집 완료 메시지와 함께 AI 응답 생성
                         st.session_state.messages.append({
                             "role": "assistant",
                             "content": "연락처 정보를 알려주셔서 고맙습니다. 그럼 앞서 질문하신 내용에 대해 답변드릴게요."
                         })
                         
-                        # AI 응답 생성
                         response = model.generate_content(st.session_state.initial_question).text
                         st.session_state.messages.append({"role": "assistant", "content": response})
                         
-                        # 대화 내용 저장
                         save_to_sheets(sheet, {
                             'question': st.session_state.initial_question,
                             'response': response,
@@ -161,8 +156,9 @@ try:
         if st.session_state.contact_step is None:
             if prompt := st.chat_input("궁금하신 내용을 입력해주세요..."):
                 st.session_state.messages.append({"role": "user", "content": prompt})
+                st.chat_message("user").write(prompt)
                 
-              if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
+                if len(st.session_state.messages) == 2 and not st.session_state.button_pressed:
                     st.session_state.initial_question = prompt
                     st.session_state.initial_keywords = extract_keywords(prompt)
                     
@@ -180,11 +176,6 @@ try:
                             name_msg = "이름이 어떻게 되세요?"
                             st.session_state.messages.append({"role": "assistant", "content": name_msg})
                             st.chat_message("assistant").write(name_msg)
-                            name = st.text_input("이름 입력", key="name_first", label_visibility="collapsed")
-                            if name.strip():
-                                st.session_state.user_info['name'] = name
-                                st.session_state.contact_step = 1
-                                st.rerun()
 
                     with col2:
                         if st.button("아니오", key="no_button", use_container_width=True):
@@ -208,7 +199,7 @@ try:
                         'email': st.session_state.user_info.get('email', ''),
                         'phone': st.session_state.user_info.get('phone', '')
                     })
-                    st.rerun()
+                    st.chat_message("assistant").write(response)
 
     # 자동 스크롤을 위한 JavaScript 추가
     if st.session_state.messages:
